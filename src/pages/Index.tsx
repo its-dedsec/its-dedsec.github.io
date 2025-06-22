@@ -76,7 +76,6 @@ const Index = () => {
       )}
     </div>
   );
-};
 
   const handleScanResult = (data: string, source: 'camera' | 'upload' | 'manual') => {
     console.log('Scan result received:', { data, source });
