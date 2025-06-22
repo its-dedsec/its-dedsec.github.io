@@ -32,6 +32,8 @@ import { useTheme } from '@/components/ThemeProvider';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { QRCameraScanner } from "../components/QRCameraScanner";
+import { Button } from "../components/ui/button";
 
 interface SecurityCheck {
   name: string;
@@ -53,6 +55,28 @@ const Index = () => {
   const { theme, setTheme, isDark } = useTheme();
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [scanResult, setScanResult] = useState<string | null>(null);
+  return (
+    <div className="p-6 text-white">
+      <h1 className="text-2xl font-bold mb-4">Welcome to QR Shield</h1>
+      <Button onClick={() => setScannerOpen(true)}>Scan QR Code</Button>
+
+      <QRCameraScanner
+        isOpen={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onScanResult={(result) => setScanResult(result)}
+      />
+
+      {scanResult && (
+        <div className="mt-4">
+          <p>Scanned Result:</p>
+          <code className="bg-gray-800 p-2 rounded">{scanResult}</code>
+        </div>
+      )}
+    </div>
+  );
+};
 
   const handleScanResult = (data: string, source: 'camera' | 'upload' | 'manual') => {
     console.log('Scan result received:', { data, source });
