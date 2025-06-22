@@ -76,7 +76,7 @@ const Index = () => {
       )}
     </div>
   );
-
+};
   const handleScanResult = (data: string, source: 'camera' | 'upload' | 'manual') => {
     console.log('Scan result received:', { data, source });
     setQrData(data);
@@ -560,6 +560,5 @@ const Index = () => {
       </div>
     </div>
   );
-};
 
 export default Index;
