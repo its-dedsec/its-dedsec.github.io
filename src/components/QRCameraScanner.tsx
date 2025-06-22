@@ -20,46 +20,36 @@ export const QRCameraScanner: React.FC<QRCameraScannerProps> = ({
   const [qrScanner, setQrScanner] = useState<QrScanner | null>(null);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
 
-useEffect(() => {
-  let scanner: QrScanner;
-
-  if (isOpen) {
-    const timeout = setTimeout(() => {
-      if (!videoRef.current) return;
-
-      scanner = new QrScanner(
+  useEffect(() => {
+    if (isOpen && videoRef.current) {
+      const scanner = new QrScanner(
         videoRef.current,
         (result) => {
-          console.log("QR Code detected:", result.data);
+          console.log('QR Code detected:', result.data);
           onScanResult(result.data);
           onClose();
         },
         {
           highlightScanRegion: true,
           highlightCodeOutline: true,
-          preferredCamera: "environment",
+          preferredCamera: 'environment',
         }
       );
 
-      scanner.start()
-        .then(() => {
-          setHasPermission(true);
-          setQrScanner(scanner);
-        })
-        .catch((error) => {
-          console.error("Camera error:", error);
-          setHasPermission(false);
-        });
-    }, 100); // Delay to ensure videoRef is mounted
+      scanner.start().then(() => {
+        setHasPermission(true);
+        setQrScanner(scanner);
+      }).catch((error) => {
+        console.error('Failed to start camera:', error);
+        setHasPermission(false);
+      });
 
-    return () => {
-      clearTimeout(timeout);
-      scanner?.stop();
-      scanner?.destroy();
-    };
-  }
-}, [isOpen, onScanResult, onClose]);
-
+      return () => {
+        scanner.stop();
+        scanner.destroy();
+      };
+    }
+  }, [isOpen, onScanResult, onClose]);
 
   if (!isOpen) return null;
 
