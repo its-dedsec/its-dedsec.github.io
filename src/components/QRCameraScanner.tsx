@@ -22,13 +22,22 @@ export const QRCameraScanner: React.FC<QRCameraScannerProps> = ({
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [permissionError, setPermissionError] = useState<string>('');
   const [isRetrying, setIsRetrying] = useState(false);
+  const [cameraStarted, setCameraStarted] = useState(false);
 
   const requestCameraPermission = async () => {
     try {
       setIsRetrying(true);
       setPermissionError('');
+      setCameraStarted(false);
       
-      // First check if camera is available
+      // Clean up any existing scanner first
+      if (qrScanner) {
+        await qrScanner.stop();
+        qrScanner.destroy();
+        setQrScanner(null);
+      }
+
+      // Check if camera is available
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error('Camera not supported on this device');
       }
@@ -43,42 +52,44 @@ export const QRCameraScanner: React.FC<QRCameraScannerProps> = ({
         }
       }
 
-      // Request camera access explicitly
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
-          facingMode: 'environment',
-          width: { ideal: 640 },
-          height: { ideal: 640 }
-        } 
-      });
-      
-      // Stop the test stream
-      stream.getTracks().forEach(track => track.stop());
-      
-      // Now start the QR scanner
-      if (videoRef.current) {
-        const scanner = new QrScanner(
-          videoRef.current,
-          (result) => {
-            console.log('QR Code detected:', result.data);
-            onScanResult(result.data);
-            onClose();
-          },
-          {
-            highlightScanRegion: true,
-            highlightCodeOutline: true,
-            preferredCamera: 'environment',
-            maxScansPerSecond: 5,
-          }
-        );
-
-        await scanner.start();
-        setHasPermission(true);
-        setQrScanner(scanner);
+      // Ensure video element is available
+      if (!videoRef.current) {
+        throw new Error('Video element not ready');
       }
+
+      console.log('Starting QR scanner...');
+      
+      // Create new scanner instance
+      const scanner = new QrScanner(
+        videoRef.current,
+        (result) => {
+          console.log('QR Code detected:', result.data);
+          onScanResult(result.data);
+          onClose();
+        },
+        {
+          highlightScanRegion: true,
+          highlightCodeOutline: true,
+          preferredCamera: 'environment',
+          maxScansPerSecond: 5,
+          returnDetailedScanResult: true,
+        }
+      );
+
+      // Wait a bit before starting to ensure proper initialization
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      await scanner.start();
+      
+      console.log('QR scanner started successfully');
+      setHasPermission(true);
+      setQrScanner(scanner);
+      setCameraStarted(true);
+      
     } catch (error: any) {
       console.error('Camera permission error:', error);
       setHasPermission(false);
+      setCameraStarted(false);
       
       if (error.name === 'NotAllowedError' || error.message.includes('denied')) {
         setPermissionError('Camera access denied. Please allow camera permissions and try again.');
@@ -88,6 +99,8 @@ export const QRCameraScanner: React.FC<QRCameraScannerProps> = ({
         setPermissionError('Camera not supported on this browser. Try Chrome, Firefox, or Safari.');
       } else if (error.name === 'NotReadableError') {
         setPermissionError('Camera is busy. Please close other apps using the camera and try again.');
+      } else if (error.name === 'AbortError') {
+        setPermissionError('Camera access was interrupted. Please try again.');
       } else {
         setPermissionError(error.message || 'Failed to access camera. Please check your browser settings.');
       }
@@ -97,14 +110,20 @@ export const QRCameraScanner: React.FC<QRCameraScannerProps> = ({
   };
 
   useEffect(() => {
-    if (isOpen) {
-      requestCameraPermission();
+    if (isOpen && videoRef.current) {
+      // Small delay to ensure the video element is properly mounted
+      const timer = setTimeout(() => {
+        requestCameraPermission();
+      }, 200);
+      
+      return () => clearTimeout(timer);
     }
 
     return () => {
       if (qrScanner) {
         qrScanner.stop();
         qrScanner.destroy();
+        setQrScanner(null);
       }
     };
   }, [isOpen]);
@@ -112,6 +131,7 @@ export const QRCameraScanner: React.FC<QRCameraScannerProps> = ({
   const handleRetry = () => {
     setHasPermission(null);
     setPermissionError('');
+    setCameraStarted(false);
     requestCameraPermission();
   };
 
@@ -158,7 +178,7 @@ export const QRCameraScanner: React.FC<QRCameraScannerProps> = ({
             <div className="text-center py-8">
               <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
               <p className="text-gray-300 mb-2">
-                {isRetrying ? 'Retrying camera access...' : 'Requesting camera permission...'}
+                {isRetrying ? 'Starting camera...' : 'Requesting camera permission...'}
               </p>
               <p className="text-sm text-gray-500">
                 Please allow camera access when prompted
@@ -211,7 +231,7 @@ export const QRCameraScanner: React.FC<QRCameraScannerProps> = ({
             </div>
           )}
 
-          {hasPermission === true && (
+          {hasPermission === true && cameraStarted && (
             <div className="relative">
               <video
                 ref={videoRef}
@@ -219,6 +239,7 @@ export const QRCameraScanner: React.FC<QRCameraScannerProps> = ({
                 style={{ aspectRatio: '1/1' }}
                 playsInline
                 muted
+                autoPlay
               />
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div className="w-48 h-48 border-2 border-blue-500 rounded-xl relative">
@@ -238,6 +259,14 @@ export const QRCameraScanner: React.FC<QRCameraScannerProps> = ({
                   Camera Active
                 </div>
               </div>
+            </div>
+          )}
+
+          {hasPermission === true && !cameraStarted && (
+            <div className="text-center py-8">
+              <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+              <p className="text-gray-300 mb-2">Starting camera...</p>
+              <p className="text-sm text-gray-500">Please wait while we initialize the camera</p>
             </div>
           )}
         </div>
