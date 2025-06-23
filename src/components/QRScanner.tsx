@@ -32,22 +32,49 @@ export const QRScanner: React.FC<QRScannerProps> = ({ onScanResult }) => {
     if (!selectedFile) return;
 
     try {
-      // Use HTML5 QR code scanner
-      const QrScanner = (await import('qr-scanner')).default;
-      const result = await QrScanner.scanImage(selectedFile);
-      
-      console.log('QR Code extracted from image:', result);
-      onScanResult(result, 'upload');
-      
-      toast({
-        title: "QR Code Scanned",
-        description: "Successfully extracted URL from image"
+      // Create FormData for the goQR API
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+
+      // Use goQR.me API to scan the QR code
+      const response = await fetch('https://api.qrserver.com/v1/read-qr-code/', {
+        method: 'POST',
+        body: formData
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to scan QR code');
+      }
+
+      const result = await response.json();
+      
+      if (result && result.length > 0 && result[0].symbol && result[0].symbol.length > 0) {
+        const qrData = result[0].symbol[0].data;
+        const error = result[0].symbol[0].error;
+
+        if (error) {
+          throw new Error(error);
+        }
+
+        if (qrData) {
+          console.log('QR Code extracted from image:', qrData);
+          onScanResult(qrData, 'upload');
+          
+          toast({
+            title: "QR Code Scanned",
+            description: "Successfully extracted URL from image"
+          });
+        } else {
+          throw new Error('No QR code data found in image');
+        }
+      } else {
+        throw new Error('Invalid response format from QR scanning service');
+      }
     } catch (error) {
       console.error('Failed to scan QR code from image:', error);
       toast({
         title: "Scan Failed",
-        description: "Could not extract QR code from image. Please try a clearer image.",
+        description: error instanceof Error ? error.message : "Could not extract QR code from image. Please try a clearer image.",
         variant: "destructive"
       });
     }

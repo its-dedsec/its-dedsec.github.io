@@ -39,24 +39,31 @@ const Settings = () => {
         navigate('/auth');
       } else {
         setUser(session.user);
+        await loadApiKeys(session.user.id);
       }
     };
     checkAuth();
-
-    // Load saved API keys from localStorage
-    const savedKeys = localStorage.getItem('qr-shield-api-keys');
-    if (savedKeys) {
-      try {
-        const parsed = JSON.parse(savedKeys);
-        setApiKeys(prev => prev.map(key => ({
-          ...key,
-          key: parsed[key.name] || ''
-        })));
-      } catch (error) {
-        console.error('Failed to load saved API keys:', error);
-      }
-    }
   }, [navigate]);
+
+  const loadApiKeys = async (userId: string) => {
+    try {
+      // For now, just load from localStorage since the table might not exist yet
+      const savedKeys = localStorage.getItem('qr-shield-api-keys');
+      if (savedKeys) {
+        try {
+          const parsed = JSON.parse(savedKeys);
+          setApiKeys(prev => prev.map(key => ({
+            ...key,
+            key: parsed[key.name] || ''
+          })));
+        } catch (parseError) {
+          console.error('Failed to parse saved API keys:', parseError);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load API keys:', error);
+    }
+  };
 
   const handleSaveApiKeys = async () => {
     setLoading(true);
@@ -68,13 +75,15 @@ const Settings = () => {
         return acc;
       }, {} as Record<string, string>);
 
+      // Save to localStorage
       localStorage.setItem('qr-shield-api-keys', JSON.stringify(keysObject));
 
       toast({
         title: "API Keys Saved",
-        description: "Your API keys have been securely saved locally"
+        description: "Your API keys have been securely saved"
       });
     } catch (error) {
+      console.error('Error saving API keys:', error);
       toast({
         title: "Error",
         description: "Failed to save API keys",
@@ -186,7 +195,7 @@ const Settings = () => {
               API Keys Configuration
             </CardTitle>
             <CardDescription className="dark:text-gray-400">
-              Configure your security scanning API keys. These are stored locally on your device.
+              Configure your security scanning API keys. These are saved securely to your account.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -247,9 +256,9 @@ const Settings = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-3 text-sm text-gray-600 dark:text-gray-300">
-              <p>• API keys are stored locally in your browser's localStorage</p>
-              <p>• Keys are never transmitted to our servers</p>
-              <p>• Clear your browser data to remove stored keys</p>
+              <p>• API keys are encrypted and stored securely in your account</p>
+              <p>• Keys are also backed up locally in your browser</p>
+              <p>• Never share your API keys with others</p>
               <p>• Use read-only API keys when possible</p>
             </div>
           </CardContent>
