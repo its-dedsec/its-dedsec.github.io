@@ -10,6 +10,7 @@ interface SecurityCheck {
   description: string;
   details?: string;
   engines?: any;
+  screenshot?: string;
 }
 
 serve(async (req) => {
@@ -107,7 +108,6 @@ serve(async (req) => {
     if (apiKeys.URLSCAN_API_KEY) {
       console.log('Checking with URLScan.io...')
       try {
-        // Submit URL for scanning
         const scanResponse = await fetch('https://urlscan.io/api/v1/scan/', {
           method: 'POST',
           headers: {
@@ -139,10 +139,81 @@ serve(async (req) => {
       }
     }
 
+    // Browserless Sandbox Screenshot - FIXED IMPLEMENTATION
+    if (apiKeys.BROWSERLESS_API_KEY) {
+      console.log('Capturing sandbox screenshot with Browserless...')
+      try {
+        const screenshotResponse = await fetch(`https://chrome.browserless.io/screenshot?token=${apiKeys.BROWSERLESS_API_KEY}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            url: url,
+            options: {
+              fullPage: false,
+              type: 'png',
+              quality: 80,
+              clip: {
+                x: 0,
+                y: 0,
+                width: 1280,
+                height: 720
+              }
+            },
+            viewport: {
+              width: 1280,
+              height: 720,
+              deviceScaleFactor: 1
+            },
+            gotoOptions: {
+              timeout: 15000,
+              waitUntil: 'networkidle2'
+            }
+          })
+        })
+
+        console.log('Browserless response status:', screenshotResponse.status)
+        
+        if (screenshotResponse.ok) {
+          const screenshotBuffer = await screenshotResponse.arrayBuffer()
+          const base64Screenshot = btoa(String.fromCharCode(...new Uint8Array(screenshotBuffer)))
+          const screenshotDataUrl = `data:image/png;base64,${base64Screenshot}`
+          
+          console.log('Screenshot captured successfully, size:', screenshotBuffer.byteLength, 'bytes')
+
+          results.push({
+            name: 'Sandbox Screenshot',
+            status: 'passed',
+            description: 'Controlled environment website capture',
+            details: 'Screenshot captured in secure sandbox environment',
+            screenshot: screenshotDataUrl
+          })
+        } else {
+          const errorText = await screenshotResponse.text()
+          console.error('Browserless screenshot failed:', screenshotResponse.status, errorText)
+          
+          results.push({
+            name: 'Sandbox Screenshot',
+            status: 'warning',
+            description: 'Failed to capture sandbox screenshot',
+            details: `Browserless service error: ${screenshotResponse.status}`
+          })
+        }
+      } catch (error) {
+        console.error('Browserless screenshot error:', error)
+        results.push({
+          name: 'Sandbox Screenshot',
+          status: 'warning',
+          description: 'Failed to capture sandbox screenshot',
+          details: 'Browserless service temporarily unavailable'
+        })
+      }
+    }
+
     // IP Info Check
     if (apiKeys.IPINFO_API_KEY) {
       try {
-        // Extract domain from URL
         const domain = new URL(url).hostname
         const ipResponse = await fetch(`https://ipinfo.io/${domain}?token=${apiKeys.IPINFO_API_KEY}`)
         const ipData = await ipResponse.json()
@@ -197,7 +268,8 @@ serve(async (req) => {
 
     console.log('Security scan completed:', {
       resultsCount: results.length,
-      overallRisk
+      overallRisk,
+      hasScreenshot: results.some(r => r.screenshot)
     })
 
     return new Response(

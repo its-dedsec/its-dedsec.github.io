@@ -17,7 +17,9 @@ import {
   ChevronDown,
   ChevronUp,
   TrendingUp,
-  Gauge
+  Gauge,
+  Camera,
+  ExternalLink
 } from 'lucide-react';
 
 interface SecurityCheck {
@@ -26,6 +28,7 @@ interface SecurityCheck {
   description: string;
   details?: string;
   engines?: any;
+  screenshot?: string;
 }
 
 interface SecurityAnalyzerProps {
@@ -145,7 +148,7 @@ export const SecurityAnalyzer: React.FC<SecurityAnalyzerProps> = ({
                 { icon: Globe, label: 'URL Analysis', color: 'blue', delay: '0s' },
                 { icon: Shield, label: 'Threat Detection', color: 'purple', delay: '0.2s' },
                 { icon: Lock, label: 'Safe Browsing', color: 'green', delay: '0.4s' },
-                { icon: Activity, label: 'Deep Scan', color: 'amber', delay: '0.6s' }
+                { icon: Camera, label: 'Sandbox Screenshot', color: 'amber', delay: '0.6s' }
               ].map((item, index) => (
                 <div 
                   key={index}
@@ -177,7 +180,7 @@ export const SecurityAnalyzer: React.FC<SecurityAnalyzerProps> = ({
                   ))}
                 </div>
                 <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                  Analyzing with multiple security engines...
+                  Analyzing with multiple security engines and capturing sandbox screenshot...
                 </span>
               </div>
             </div>
@@ -265,6 +268,43 @@ export const SecurityAnalyzer: React.FC<SecurityAnalyzerProps> = ({
                   {check.status.toUpperCase()}
                 </Badge>
               </div>
+
+              {/* Sandbox Screenshot */}
+              {check.screenshot && (
+                <div className="border-t border-gray-200 dark:border-gray-700/50 p-6 bg-white/50 dark:bg-gray-900/50">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Camera className="w-5 h-5 text-blue-500" />
+                    <h4 className="font-semibold text-gray-800 dark:text-gray-200">Sandbox Screenshot</h4>
+                    <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 text-xs">
+                      SECURE ENVIRONMENT
+                    </Badge>
+                  </div>
+                  <div className="relative group">
+                    <img 
+                      src={check.screenshot} 
+                      alt="Sandbox screenshot of the website" 
+                      className="w-full max-w-2xl mx-auto rounded-lg border-2 border-gray-300 dark:border-gray-600 shadow-lg transition-transform duration-300 group-hover:scale-105"
+                      onError={(e) => {
+                        console.error('Screenshot failed to load');
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => window.open(check.screenshot, '_blank')}
+                      className="absolute top-2 right-2 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm hover:bg-white dark:hover:bg-gray-800 shadow-md"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                    </Button>
+                    <div className="mt-3 text-center">
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Website captured in isolated sandbox environment (1280x720)
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Engine Results */}
               {check.engines && (

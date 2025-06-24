@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,6 +19,7 @@ import {
 import { toast } from '@/hooks/use-toast';
 import { QRScanner } from '@/components/QRScanner';
 import { SecurityAnalyzer } from '@/components/SecurityAnalyzer';
+import { PrecautionarySteps } from '@/components/PrecautionarySteps';
 import { useTheme } from '@/components/ThemeProvider';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
@@ -29,6 +31,7 @@ interface SecurityCheck {
   description: string;
   details?: string;
   engines?: any;
+  screenshot?: string;
 }
 
 const Index = () => {
@@ -360,13 +363,19 @@ const Index = () => {
     );
   }
 
+  const getOverallRisk = () => {
+    if (securityChecks.some(c => c.status === 'failed')) return 'HIGH';
+    if (securityChecks.some(c => c.status === 'warning')) return 'MEDIUM';
+    return 'LOW';
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-gray-900 dark:via-gray-900 dark:to-black transition-colors duration-300">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 max-w-7xl">
         {/* Header - Mobile Optimized */}
         <div className="text-center mb-6 sm:mb-10">
           <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-            {/* Mobile: Settings/Auth Button - Left Side */}
+            {/* Settings/Auth Button - Left Side */}
             <div className="flex items-center gap-2 order-2 sm:order-1 w-full sm:w-auto justify-start">
               {user ? (
                 <Button
@@ -389,7 +398,7 @@ const Index = () => {
               )}
             </div>
 
-            {/* Mobile: User Info & Controls - Right Side */}
+            {/* User Info & Controls - Right Side */}
             <div className="flex items-center gap-2 sm:gap-3 order-1 sm:order-2 w-full sm:w-auto justify-end">
               {user && (
                 <div className="flex items-center gap-2 sm:gap-3 px-2 sm:px-4 py-2 rounded-full bg-white/10 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200/20 dark:border-gray-700/50">
@@ -484,6 +493,14 @@ const Index = () => {
             />
           </div>
         </div>
+
+        {/* Precautionary Steps - Full Width */}
+        {qrData && securityChecks.length > 0 && (
+          <PrecautionarySteps 
+            overallRisk={getOverallRisk()} 
+            qrData={qrData} 
+          />
+        )}
 
         {/* Download Report - Full Width */}
         {reportReady && (
